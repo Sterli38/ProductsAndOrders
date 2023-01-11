@@ -1,0 +1,1088 @@
+Index: src/main/java/org/example/OrdersService.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/org/example/OrdersService.java b/src/main/java/org/example/OrdersService.java
+new file mode 100644
+--- /dev/null	(date 1671628889860)
++++ b/src/main/java/org/example/OrdersService.java	(date 1671628889860)
+@@ -0,0 +1,112 @@
++package org.example;
++
++import java.io.*;
++import java.text.DateFormat;
++import java.text.ParseException;
++import java.text.SimpleDateFormat;
++import java.util.*;
++import java.util.stream.Collectors;
++
++public class OrdersService implements Serializable {
++    private List<Order> orders = new ArrayList<>();
++
++    public OrdersService(String path) {
++
++        try (BufferedReader ois = new BufferedReader(new FileReader(path))) {
++            String string = ois.readLine();
++            DateFormat dateFormat = new SimpleDateFormat("yyyy,MM,dd,HH,mm,ss");
++            while(string != null) {
++                String[] array = string.split(";");
++                Date date = null;
++                if(!array[2].equals("")) {
++                    date = dateFormat.parse(array[2]);
++                }
++                Order order = new Order(dateFormat.parse(array[0]), Integer.parseInt(array[1]), date);
++                for(int j = 3; j < array.length; j += 4) {
++                    try {
++                        Product product = new Product(array[j], array[j + 1], Integer.parseInt(array[j + 2]), Double.parseDouble(array[j + 3]));
++                        order.add(product);
++                    } catch (Exception ex1) {
++                        System.out.println("Неверный формат добавления продукта или заказа");
++                    }
++                }
++                orders.add(order);
++                string = ois.readLine();
++            }
++        } catch (IOException ex) {
++//            ex.printStackTrace();
++            System.out.println("Файл не найден");
++        } catch (ParseException e) {
++            throw new RuntimeException(e);
++        }
++    }
++
++    public List<Order> getOrders() {
++        return orders;
++    }
++
++    public void addOrder(Order order) {
++        orders.add(order);
++    }
++
++    public Order getOrder(int id) {
++        Order order = orders.stream()
++                .filter(i -> i.getId() == id)
++                .findFirst()
++                .orElse(null);
++        if(order == null) {
++            System.out.println("Такого заказа нет в списке заказов!");
++        } else {
++            System.out.println(order);
++        }
++        return order;
++    }
++
++    public boolean isEmpty() {
++        return orders.isEmpty();
++    }
++
++    @Override
++    public String toString() {
++        return "Заказы:" +  orders;
++    }
++
++    public List<Order> getUnpaidOrders() {
++        return orders.stream()
++                .filter(i -> i.getOrderPaymentDay() == null )
++                .collect(Collectors.toList());
++    }
++
++    public List<Order> getOrdersBetween(Date dateFrom, Date dateTill) {
++        return orders.stream()
++                .filter(i -> i.getCreationDate().after(dateFrom) &&  i.getCreationDate().before(dateTill))
++                .collect(Collectors.toList());
++    }
++
++    private void sale() {
++         orders.stream()
++                .filter(i -> i.getOrderPrice() > 1000)
++                .forEach(i -> i.setPrice(i.getOrderPrice() * 0.95));
++    }
++
++    public List<Map.Entry<Product, Integer>> top() {
++        Map<Product,Integer> map = new HashMap<>();
++        for(int i = 0; i < orders.size(); i++) { //Создаём внешний цикл чтобы получить список продуктов каждого заказа
++            List<Product> products = orders.get(i).getProducts();
++            for(int j = 0 ; j < products.size(); j++) {
++                Product product = products.get(j); // Получаем каждый продукт
++                Integer count = map.get(product);
++                if(count == null) {
++                    map.put(product,1);
++                } else {
++                    map.put(product,count + 1);// если продукт ранее не встречался , Пишем одно повторение , если продукт встречался ранее прибавляем 1
++                }
++            }
++        }
++        List<Map.Entry<Product,Integer>> list = new ArrayList<>(map.entrySet());
++        list.sort((o1, o2) -> o2.getValue().compareTo(o1.getValue()));
++        return list.stream()
++                .limit(3)
++                .collect(Collectors.toList());
++    }
++}
+\ No newline at end of file
+Index: src/main/java/org/example/Product.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/org/example/Product.java b/src/main/java/org/example/Product.java
+new file mode 100644
+--- /dev/null	(date 1671519900053)
++++ b/src/main/java/org/example/Product.java	(date 1671519900053)
+@@ -0,0 +1,70 @@
++package org.example;
++
++import java.io.Serializable;
++import java.util.Objects;
++
++public class Product implements Serializable {
++    private String productType;
++    private String name;
++    private static int idGenerator = 0;
++    private int id;
++    private double price;
++
++    public Product(String productType, String name, int id, double price) {
++        this.name = name;
++        this.productType = productType;
++        this.id = id;
++        this.price = price;
++    }
++
++    public void setProductType(String productType) {
++        this.productType = productType;
++    }
++
++    public void setName(String name) {
++        this.name = name;
++    }
++
++    public void setPrice(double price) {
++        this.price = price;
++    }
++
++    public String getProductType() {
++        return productType;
++    }
++
++    public String getName() {
++        return name;
++    }
++
++    public double getPrice() {
++        return price;
++    }
++
++    public int getId() {
++        return id;
++    }
++
++    @Override
++    public String toString() {
++        return  "Продукты: " +
++                "ID: " + id +
++                " ,Тип продукта: " + productType +
++                ", Название: " + name +
++                ", Цена: " + price +
++                '}';
++    }
++
++    @Override
++    public boolean equals(Object o) {
++        if (this == o) return true;
++        if (o == null || getClass() != o.getClass()) return false;
++        Product product = (Product) o;
++        return id == product.id && Double.compare(product.price, price) == 0 && Objects.equals(productType, product.productType) && Objects.equals(name, product.name);
++    }
++
++    @Override
++    public int hashCode() {
++        return Objects.hash(productType, name, id, price);
++    }
++}
+\ No newline at end of file
+Index: src/main/java/org/example/Order.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/org/example/Order.java b/src/main/java/org/example/Order.java
+new file mode 100644
+--- /dev/null	(date 1671519900045)
++++ b/src/main/java/org/example/Order.java	(date 1671519900045)
+@@ -0,0 +1,112 @@
++package org.example;
++
++import java.io.Serializable;
++import java.util.ArrayList;
++import java.util.Date;
++import java.util.List;
++import java.util.Objects;
++import java.util.stream.Collectors;
++
++public class Order implements Serializable {
++   private final Date creationDate;
++   private int id = idGenerator++;
++   private static int idGenerator = 1;
++   private Date orderPaymentDay;
++   private double price;
++   private List<Product> products = new ArrayList<>();
++
++   public Order(Date creationDate, int id, Date orderPaymentDay) {
++      this.creationDate = creationDate;
++      this.id = id;
++      this.orderPaymentDay = orderPaymentDay;
++
++   }
++
++   public void setOrderPaymentDay(Date orderPaymentDay) {
++      this.orderPaymentDay = orderPaymentDay;
++   }
++
++   public int getId() {
++      return id;
++   }
++
++   public Date getCreationDate() {
++      return creationDate;
++   }
++
++   public Date getOrderPaymentDay() {
++      return orderPaymentDay;
++   }
++
++   @Override
++   public String toString() {
++      return   "Заказ: " +
++              "Дата: " + creationDate +
++              ", id = " + id +
++              ", День оплаты: " + orderPaymentDay +
++              ", Список продуктов: " + products +
++              '}';
++   }
++
++   public void add(Product product) {
++      products.add(product);
++   }
++
++   public Product getProduct(int id) {
++    return products.stream()
++            .filter(i -> i.getId() == id)
++            .findFirst().get();
++   }
++
++
++
++   public void remove(int id) {
++//       products = products.stream()
++//           .filter(i -> i.getId() != id)
++//           .collect(Collectors.toList());
++//
++      products.removeIf(i -> i.getId() == id);
++   }
++
++   public boolean isEmpty() {
++      return products.isEmpty();
++   }
++
++   public double getOrderPrice() {
++      return products.stream()
++              .mapToInt(i -> (int) i.getPrice())
++              .sum();
++   }
++
++   public List<Product> getProducts() {
++      return products;
++   }
++
++      public void sale() {
++         products.forEach(i -> i.setPrice(i.getPrice() * 0.95));
++   }
++
++   public void setPrice(double price) {
++     this.price = price;
++   }
++
++   @Override
++   public boolean equals(Object o) {
++      if (this == o) return true;
++      if (o == null || getClass() != o.getClass()) return false;
++      Order order = (Order) o;
++      return id == order.id && Double.compare(order.price, price) == 0 && Objects.equals(creationDate, order.creationDate) && Objects.equals(orderPaymentDay, order.orderPaymentDay) && Objects.equals(products, order.products);
++   }
++
++   @Override
++   public int hashCode() {
++      return Objects.hash(creationDate, id, orderPaymentDay, price, products);
++   }
++
++   //      public void top() {
++//      products.stream()
++//              .filter(i -> Collections.frequency(products, i) > 1)
++//              .collect(Collectors.toSet())
++//              .forEach(System.out::println);
++//   }
++}
+Index: .idea/.gitignore
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/.gitignore b/.idea/.gitignore
+new file mode 100644
+--- /dev/null	(date 1671171120542)
++++ b/.idea/.gitignore	(date 1671171120542)
+@@ -0,0 +1,3 @@
++# Default ignored files
++/shelf/
++/workspace.xml
+Index: .idea/vcs.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/vcs.xml b/.idea/vcs.xml
+new file mode 100644
+--- /dev/null	(date 1671802102768)
++++ b/.idea/vcs.xml	(date 1671802102768)
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project version="4">
++  <component name="VcsDirectoryMappings">
++    <mapping directory="$PROJECT_DIR$" vcs="Git" />
++  </component>
++</project>
+\ No newline at end of file
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/pom.xml b/pom.xml
+new file mode 100644
+--- /dev/null	(date 1671171803914)
++++ b/pom.xml	(date 1671171803914)
+@@ -0,0 +1,44 @@
++<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
++         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
++  <modelVersion>4.0.0</modelVersion>
++
++  <groupId>org.example</groupId>
++  <artifactId>productsAndOrders</artifactId>
++  <version>1.0-SNAPSHOT</version>
++  <packaging>jar</packaging>
++
++  <name>productsAndOrders</name>
++  <url>http://maven.apache.org</url>
++
++  <properties>
++    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
++    <maven.compiler.source>19</maven.compiler.source>
++    <maven.compiler.target>19</maven.compiler.target>
++  </properties>
++
++  <dependencies>
++    <dependency>
++      <groupId>junit</groupId>
++      <artifactId>junit</artifactId>
++      <version>3.8.1</version>
++      <scope>test</scope>
++    </dependency>
++    <dependency>
++      <groupId>org.apache.commons</groupId>
++      <artifactId>commons-lang3</artifactId>
++      <version>3.12.0</version>
++    </dependency>
++    <dependency>
++      <groupId>junit</groupId>
++      <artifactId>junit</artifactId>
++      <version>RELEASE</version>
++      <scope>test</scope>
++    </dependency>
++    <dependency>
++      <groupId>org.junit.jupiter</groupId>
++      <artifactId>junit-jupiter</artifactId>
++      <version>RELEASE</version>
++      <scope>test</scope>
++    </dependency>
++  </dependencies>
++</project>
+Index: src/test/java/EmptyOrders.txt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/EmptyOrders.txt b/src/test/java/EmptyOrders.txt
+new file mode 100644
+--- /dev/null	(date 1671517963256)
++++ b/src/test/java/EmptyOrders.txt	(date 1671517963256)
+@@ -0,0 +1,2 @@
++2021,10,20,01,30,00;2;;"Продукты";Масло;19;58;"Продукты";"Чипсы";50;90
++2022,9,3,01,30,00;3;;"Продукты";Масло;19;58;"Продукты";"Арахис";3;120;"Продукты";"Мясо";2;200;"Продукты";"Чипсы";50;90
+\ No newline at end of file
+Index: target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst b/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst
+new file mode 100644
+--- /dev/null	(date 1671171574111)
++++ b/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst	(date 1671171574111)
+@@ -0,0 +1,6 @@
++C:\Users\lenya\IdeaProjects\productsAndOrders\src\main\java\org\example\OrdersService.java
++C:\Users\lenya\IdeaProjects\productsAndOrders\src\main\java\org\example\Order.java
++C:\Users\lenya\IdeaProjects\productsAndOrders\src\main\java\org\example\Product.java
++C:\Users\lenya\IdeaProjects\productsAndOrders\src\main\java\org\example\Products.java
++C:\Users\lenya\IdeaProjects\productsAndOrders\src\main\java\org\example\Manager.java
++C:\Users\lenya\IdeaProjects\productsAndOrders\src\main\java\org\example\Main.java
+Index: .idea/encodings.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/encodings.xml b/.idea/encodings.xml
+new file mode 100644
+--- /dev/null	(date 1671171606738)
++++ b/.idea/encodings.xml	(date 1671171606738)
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project version="4">
++  <component name="Encoding">
++    <file url="file://$PROJECT_DIR$/src/main/java" charset="UTF-8" />
++    <file url="file://$PROJECT_DIR$/src/main/resources" charset="UTF-8" />
++  </component>
++</project>
+\ No newline at end of file
+Index: src/test/java/org/example/OrdersServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/org/example/OrdersServiceTest.java b/src/test/java/org/example/OrdersServiceTest.java
+new file mode 100644
+--- /dev/null	(date 1671774932021)
++++ b/src/test/java/org/example/OrdersServiceTest.java	(date 1671774932021)
+@@ -0,0 +1,196 @@
++package org.example;
++
++import org.junit.jupiter.api.Test;
++
++import java.util.*;
++
++import static org.junit.jupiter.api.Assertions.*;
++
++class OrdersServiceTest {
++
++    @Test
++    void getOrders() {
++        OrdersService ordersService = new OrdersService(Path.testPath);
++        GregorianCalendar creationDate = new GregorianCalendar(2021,9,20,01,30,00);
++        GregorianCalendar paymentDay = new GregorianCalendar(2020,10,21,01,40,00);
++        GregorianCalendar creationDate1 = new GregorianCalendar(2021,9,21,01,30,00);
++        GregorianCalendar creationDate2 = new GregorianCalendar(2022,8,3,01,30,00);
++        GregorianCalendar creationDate3 = new GregorianCalendar(2022,8,3,01,30,00);
++        GregorianCalendar paymentDay3 = new GregorianCalendar(2022,9,21,07,21,00);
++        GregorianCalendar creationDate5 = new GregorianCalendar(2022,3,10,20,29,00);
++        GregorianCalendar paymentDay5 = new GregorianCalendar(2022,3,11,8,25,00);
++        Order order = new Order(creationDate.getTime(),1,paymentDay.getTime());
++        order.add(new Product("Продукты","Бананы",18,50));
++        order.add(new Product("Продукты","Печенье",7,78));
++        order.add(new Product("Продукты","Чипсы",50,90));
++        Order order1 = new Order(creationDate1.getTime(),2,null);
++        order1.add(new Product("Продукты","Масло",19,58));
++        order1.add(new Product("Продукты","Чипсы",50,90));
++        Order order2 = new Order(creationDate2.getTime(),3,null);
++        order2.add(new Product("Продукты","Масло",19,58));
++        order2.add(new Product("Продукты","Арахис",3,120));
++        order2.add(new Product("Продукты","Мясо",2,200));
++        order2.add(new Product("Продукты","Чипсы",50,90));
++        Order order3 = new Order(creationDate3.getTime(),4,paymentDay3.getTime());
++        order3.add(new Product("Продукты","Масло",19,58));
++        order3.add(new Product("Продукты","Арахис",3,120));
++        order3.add(new Product("Продукты","Мясо",2,200));
++        order3.add(new Product("Продукты","Чипсы",50,90));
++        Order order4 = new Order(creationDate5.getTime(),5,paymentDay5.getTime());
++        order4.add(new Product("Продукты","Майонез",20,80));
++        order4.add(new Product("Продукты","Памело",1,79));
++        order4.add(new Product("Продукты","Масло",3,120));
++        order4.add(new Product("Продукты","Чипсы",50,90));
++        order4.add(new Product("Продукты","Сок яблочный",5,140));
++        order4.add(new Product("Товары для дома","Мыло",5,90));
++        List<Order> orderList = new ArrayList<>();
++        orderList.add(order);
++        orderList.add(order1);
++        orderList.add(order2);
++        orderList.add(order3);
++        orderList.add(order4);
++        assertEquals(ordersService.getOrders(),orderList);
++    }
++
++    @Test
++    void addOrder() {
++        OrdersService ordersService = new OrdersService(Path.testPath);
++        GregorianCalendar creationDate = new GregorianCalendar(2021,9,20,01,30,00);
++        GregorianCalendar paymentDay = new GregorianCalendar(2020,10,21,01,40,00);
++        GregorianCalendar creationDate1 = new GregorianCalendar(2021,9,21,01,30,00);
++        GregorianCalendar creationDate2 = new GregorianCalendar(2022,8,3,01,30,00);
++        GregorianCalendar creationDate3 = new GregorianCalendar(2022,8,3,01,30,00);
++        GregorianCalendar paymentDay3 = new GregorianCalendar(2022,9,21,07,21,00);
++        GregorianCalendar creationDate5 = new GregorianCalendar(2022,3,10,20,29,00);
++        GregorianCalendar paymentDay5 = new GregorianCalendar(2022,3,11,8,25,00);
++        GregorianCalendar newCreationDate = new GregorianCalendar(2022,10,15);
++        GregorianCalendar newPaymentDate = new GregorianCalendar(2022,11,15);
++        Order order = new Order(creationDate.getTime(),1,paymentDay.getTime());
++        order.add(new Product("Продукты","Бананы",18,50));
++        order.add(new Product("Продукты","Печенье",7,78));
++        order.add(new Product("Продукты","Чипсы",50,90));
++        Order order1 = new Order(creationDate1.getTime(),2,null);
++        order1.add(new Product("Продукты","Масло",19,58));
++        order1.add(new Product("Продукты","Чипсы",50,90));
++        Order order2 = new Order(creationDate2.getTime(),3,null);
++        order2.add(new Product("Продукты","Масло",19,58));
++        order2.add(new Product("Продукты","Арахис",3,120));
++        order2.add(new Product("Продукты","Мясо",2,200));
++        order2.add(new Product("Продукты","Чипсы",50,90));
++        Order order3 = new Order(creationDate3.getTime(),4,paymentDay3.getTime());
++        order3.add(new Product("Продукты","Масло",19,58));
++        order3.add(new Product("Продукты","Арахис",3,120));
++        order3.add(new Product("Продукты","Мясо",2,200));
++        order3.add(new Product("Продукты","Чипсы",50,90));
++        Order order4 = new Order(creationDate5.getTime(),5,paymentDay5.getTime());
++        order4.add(new Product("Продукты","Майонез",20,80));
++        order4.add(new Product("Продукты","Памело",1,79));
++        order4.add(new Product("Продукты","Масло",3,120));
++        order4.add(new Product("Продукты","Чипсы",50,90));
++        order4.add(new Product("Продукты","Сок яблочный",5,140));
++        order4.add(new Product("Товары для дома","Мыло",5,90));
++        Order newOrder = new Order(newCreationDate.getTime(),9,newPaymentDate.getTime());
++        newOrder.add(new Product("Продукты","Шоколад",45,121));
++        newOrder.add(new Product("Продукты","Мармелад",23,57));
++        newOrder.add(new Product("Продукты","Торт Наполеон",95,1500));
++        List<Order> orderList = new ArrayList<>();
++        orderList.add(order);
++        orderList.add(order1);
++        orderList.add(order2);
++        orderList.add(order3);
++        orderList.add(order4);
++        orderList.add(newOrder);
++        ordersService.addOrder(newOrder);
++        List<Order> list = ordersService.getOrders();
++        assertEquals(list,orderList);
++    }
++
++    @Test
++    void getOrder() {
++        OrdersService ordersService = new OrdersService(Path.testPath);
++        GregorianCalendar creationDate = new GregorianCalendar(2021, 9, 20, 01, 30, 00);
++        GregorianCalendar paymentDay = new GregorianCalendar(2020, 10, 21, 01, 40, 00);
++        Order order = new Order(creationDate.getTime(), 1, paymentDay.getTime());
++        order.add(new Product("Продукты", "Бананы", 18, 50));
++        order.add(new Product("Продукты", "Печенье", 7, 78));
++        order.add(new Product("Продукты", "Чипсы", 50, 90));
++        Order order1 = ordersService.getOrder(1);
++        assertEquals(order1,order);
++    }
++
++    @Test
++    void isEmpty() {
++        OrdersService ordersService = new OrdersService(Path.testEmptyPath);
++        assertTrue(ordersService.isEmpty());
++        Order order = new Order(new Date(2021),10,new Date(2022));
++        ordersService.addOrder(order);
++        assertFalse(ordersService.isEmpty());
++    }
++
++    @Test
++    void testToString() {
++    }
++
++    @Test
++    void getUnpaidOrders() {
++        OrdersService ordersService = new OrdersService(Path.testPath);
++        GregorianCalendar gregorianCalendar = new GregorianCalendar(2022, Calendar.OCTOBER,20,01,30,00);
++        GregorianCalendar gregorianCalendar1 = new GregorianCalendar(2022,Calendar.SEPTEMBER,3,01,30,00);
++        Order order = new Order(gregorianCalendar.getTime(),2,null);
++        order.add(new Product("Продукты","Масло",19,58));
++        order.add(new Product("Продукты","Чипсы",50,90));
++        Order order1 = new Order(gregorianCalendar1.getTime(),3,null);
++        order1.add(new Product("Продукты","Масло",19,58));
++        order1.add(new Product("Продукты","Арахис",3,120));
++        order1.add(new Product("Продукты","Мясо",2,200));
++        order1.add(new Product("Продукты","Чипсы",50,90));
++        List<Order> orderList = new ArrayList<>();
++        orderList.add(order);
++        orderList.add(order1);
++        List<Order> list = ordersService.getUnpaidOrders();
++        assertEquals(orderList,list);
++    }
++
++    @Test
++    void getOrdersBetween() {
++        OrdersService ordersService = new OrdersService(Path.testPath);
++        GregorianCalendar gregorianCalendar = new GregorianCalendar(2021, Calendar.OCTOBER,20,01,30,00);
++        GregorianCalendar gregorianCalendar1 = new GregorianCalendar(2021,Calendar.OCTOBER,21,01,30,00);
++        GregorianCalendar gregorianCalendar4 = new GregorianCalendar(2020,10,21,01,40,00);
++
++        Order order = new Order(gregorianCalendar.getTime(),1,gregorianCalendar4.getTime());
++        order.add(new Product("Продукты","Бананы",18,50));
++        order.add(new Product("Продукты","Печенье",7,78));
++        order.add(new Product("Продукты","Чипсы",50,90));
++        Order order1 = new Order(gregorianCalendar1.getTime(),2,null);
++        order1.add(new Product("Продукты","Масло",19,58));
++        order1.add(new Product("Продукты","Чипсы",50,90));
++        List<Order> orderList = new ArrayList<>();
++        orderList.add(order);
++        orderList.add(order1);
++        GregorianCalendar gregorianCalendar2 = new GregorianCalendar(2021,9,1);
++        GregorianCalendar gregorianCalendar3 = new GregorianCalendar(2021,10,1);
++
++        List<Order> list1 = ordersService.getOrdersBetween(gregorianCalendar2.getTime(),gregorianCalendar3.getTime());
++        assertEquals(orderList,list1);
++
++
++    }
++
++    @Test
++    void top() {
++        OrdersService ordersService = new OrdersService(Path.testPath);
++        Product product = new Product("Продукты", "Чипсы" , 50,90);
++        Product product1 = new Product("Продукты","Масло",19,58);
++        Product product2 = new Product("Продукты","Мясо",2,200);
++        Map<Product,Integer> map = new LinkedHashMap<>();
++        map.put(product,5);
++        map.put(product1,3);
++        map.put(product2,2);
++        List<Product> products2 = new ArrayList<>(map.keySet());
++        List<Integer> integers = new ArrayList<>(map.values());
++        List<Map.Entry<Product,Integer>> list = new ArrayList<>(map.entrySet());
++        List<Map.Entry<Product, Integer>> products = ordersService.top();
++        assertEquals(products,list);
++    }
++}
+\ No newline at end of file
+Index: .idea/compiler.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/compiler.xml b/.idea/compiler.xml
+new file mode 100644
+--- /dev/null	(date 1671171606725)
++++ b/.idea/compiler.xml	(date 1671171606725)
+@@ -0,0 +1,13 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project version="4">
++  <component name="CompilerConfiguration">
++    <annotationProcessing>
++      <profile name="Maven default annotation processors profile" enabled="true">
++        <sourceOutputDir name="target/generated-sources/annotations" />
++        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
++        <outputRelativeToContentRoot value="true" />
++        <module name="productsAndOrders" />
++      </profile>
++    </annotationProcessing>
++  </component>
++</project>
+\ No newline at end of file
+Index: src/test/java/org/example/AppTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/org/example/AppTest.java b/src/test/java/org/example/AppTest.java
+new file mode 100644
+--- /dev/null	(date 1671171142176)
++++ b/src/test/java/org/example/AppTest.java	(date 1671171142176)
+@@ -0,0 +1,38 @@
++package org.example;
++
++import junit.framework.Test;
++import junit.framework.TestCase;
++import junit.framework.TestSuite;
++
++/**
++ * Unit test for simple App.
++ */
++public class AppTest 
++    extends TestCase
++{
++    /**
++     * Create the test case
++     *
++     * @param testName name of the test case
++     */
++    public AppTest( String testName )
++    {
++        super( testName );
++    }
++
++    /**
++     * @return the suite of tests being tested
++     */
++    public static Test suite()
++    {
++        return new TestSuite( AppTest.class );
++    }
++
++    /**
++     * Rigourous Test :-)
++     */
++    public void testApp()
++    {
++        assertTrue( true );
++    }
++}
+Index: .idea/jarRepositories.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/jarRepositories.xml b/.idea/jarRepositories.xml
+new file mode 100644
+--- /dev/null	(date 1671171606750)
++++ b/.idea/jarRepositories.xml	(date 1671171606750)
+@@ -0,0 +1,20 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project version="4">
++  <component name="RemoteRepositoriesConfiguration">
++    <remote-repository>
++      <option name="id" value="central" />
++      <option name="name" value="Central Repository" />
++      <option name="url" value="https://repo.maven.apache.org/maven2" />
++    </remote-repository>
++    <remote-repository>
++      <option name="id" value="central" />
++      <option name="name" value="Maven Central repository" />
++      <option name="url" value="https://repo1.maven.org/maven2" />
++    </remote-repository>
++    <remote-repository>
++      <option name="id" value="jboss.community" />
++      <option name="name" value="JBoss Community repository" />
++      <option name="url" value="https://repository.jboss.org/nexus/content/repositories/public/" />
++    </remote-repository>
++  </component>
++</project>
+\ No newline at end of file
+Index: target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst b/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst
+new file mode 100644
+--- /dev/null	(date 1671171574111)
++++ b/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst	(date 1671171574111)
+@@ -0,0 +1,6 @@
++org\example\Manager.class
++org\example\Main.class
++org\example\Order.class
++org\example\OrdersService.class
++org\example\Product.class
++org\example\Products.class
+Index: src/test/OrdersTest.txt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/OrdersTest.txt b/src/test/OrdersTest.txt
+new file mode 100644
+--- /dev/null	(date 1671622872747)
++++ b/src/test/OrdersTest.txt	(date 1671622872747)
+@@ -0,0 +1,5 @@
++2021,10,20,01,30,00;1;2020,11,21,01,40,00;Продукты;Бананы;18;50;Продукты;Печенье;7;78;Продукты;Чипсы;50;90
++2021,10,21,01,30,00;2;;Продукты;Масло;19;58;Продукты;Чипсы;50;90
++2022,9,3,01,30,00;3;;Продукты;Масло;19;58;Продукты;Арахис;3;120;Продукты;Мясо;2;200;Продукты;Чипсы;50;90
++2022,9,3,01,30,00;4;2022,10,21,07,21,00;Продукты;Масло;19;58;Продукты;Арахис;3;120;Продукты;Мясо;2;200;Продукты;Чипсы;50;90
++2022,4,10,20,29,00;5;2022,4,11,8,25,00;Продукты;Майонез;20;80;Продукты;Памело;1;79;Продукты;Масло;3;120;Продукты;Чипсы;50;90;Продукты;Сок яблочный;5;140;Товары для дома;Мыло;5;90
+\ No newline at end of file
+Index: target/maven-status/maven-compiler-plugin/testCompile/default-testCompile/inputFiles.lst
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/target/maven-status/maven-compiler-plugin/testCompile/default-testCompile/inputFiles.lst b/target/maven-status/maven-compiler-plugin/testCompile/default-testCompile/inputFiles.lst
+new file mode 100644
+--- /dev/null	(date 1671171574176)
++++ b/target/maven-status/maven-compiler-plugin/testCompile/default-testCompile/inputFiles.lst	(date 1671171574176)
+@@ -0,0 +1,2 @@
++C:\Users\lenya\IdeaProjects\productsAndOrders\src\test\java\org\example\AppTest.java
++C:\Users\lenya\IdeaProjects\productsAndOrders\src\test\java\org\example\OrdersServiceTest.java
+Index: src/main/java/org/example/Path.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/org/example/Path.java b/src/main/java/org/example/Path.java
+new file mode 100644
+--- /dev/null	(date 1671517963243)
++++ b/src/main/java/org/example/Path.java	(date 1671517963243)
+@@ -0,0 +1,7 @@
++package org.example;
++
++public interface Path {
++    String originalPath = "C:\\Users\\lenya\\IdeaProjects\\productsAndOrders\\src\\main\\java\\org\\example\\Products.txt";
++    String testPath = "C:\\Users\\lenya\\IdeaProjects\\productsAndOrders\\src\\test\\OrdersTest.txt";
++    String testEmptyPath = "C:\\Users\\lenya\\IdeaProjects\\productsAndOrders\\src\\test\\OrdersTestEmpty.txt";
++}
+Index: src/main/java/org/example/Main.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/org/example/Main.java b/src/main/java/org/example/Main.java
+new file mode 100644
+--- /dev/null	(date 1672488012992)
++++ b/src/main/java/org/example/Main.java	(date 1672488012992)
+@@ -0,0 +1,24 @@
++package org.example;
++
++import java.io.IOException;
++import java.time.LocalDate;
++import java.util.Calendar;
++import java.util.Date;
++import java.util.GregorianCalendar;
++
++public class Main {
++    public static void main(String[] args) {
++        OrdersService o = new OrdersService(Path.originalPath);
++//        System.out.println();
++        System.out.println(o.getOrders());
++//        Date date = new Date(2019,4,15);
++//        Date date1 = new Date(2022,3,15);
++//        GregorianCalendar calendar = new GregorianCalendar(2020,10,20);
++//        GregorianCalendar calendar1 = new GregorianCalendar(2020,10,22);
++//        System.out.println(o.getOrdersBetween(calendar.getTime(),calendar1.getTime()));
++//Manager manager = new Manager();
++//        System.out.println(o.top());
++//       System.out.println(o.getOrders());
++//        System.out.println(o.getOrdersBetween(new Date(2024,11,20),new Date(2022,11,20))); *
++    }
++}
+Index: src/main/java/org/example/Manager.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/org/example/Manager.java b/src/main/java/org/example/Manager.java
+new file mode 100644
+--- /dev/null	(date 1671174080431)
++++ b/src/main/java/org/example/Manager.java	(date 1671174080431)
+@@ -0,0 +1,73 @@
++package org.example;
++
++import java.io.*;
++import java.util.ArrayList;
++import java.util.Comparator;
++import java.util.List;
++import java.util.stream.Collectors;
++
++public class Manager {
++    OrdersService ordersService = new OrdersService(Path.originalPath);
++    private Products products = new Products();
++    private final List<Order> orders = ordersService.getOrders();
++    public Manager() {
++        read();
++    }
++    private void read() {
++        List<Product> products = new ArrayList<>();
++        try (BufferedReader ois = new BufferedReader(new FileReader("C:\\Users\\lenya\\IdeaProjects\\Main\\src\\ProductAndOrders\\Products.txt"))) {
++            String string = ois.readLine();
++            String[] array = string.split(";");
++            products.add(new Product(array[3],array[4],Integer.parseInt(array[5]),Integer.parseInt(array[6])));
++            this.products.addAll(products);
++        } catch (IOException ex) {
++//            ex.printStackTrace();
++            System.out.println("Файл не найден");
++        }
++    }
++
++    public List<Product> priceOver100() {
++        List<Product> task1 = products.getProducts().stream()
++                .filter(i -> "Продукты".equals(i.getProductType()))
++                .filter(i -> i.getPrice() > 100)
++                .collect(Collectors.toList());
++        return task1;
++    }
++
++    public List<Product> sale() {
++        products.getProducts().stream()
++                .filter(i -> i.getProductType().equals("Товары для дома"))
++                .forEach(i -> i.setPrice(i.getPrice() * 0.9));
++        return (List<Product>) products;
++    }
++
++    public List<Product> AlphabeticalOrderByName() {
++        products.getProducts().stream()
++                .sorted(Comparator.comparing(Product::getName))
++                .collect(Collectors.toList());
++        return (List<Product>) products;
++    }
++    
++    public Order createOrder() {
++        Order order = new Order(null,0,null);
++        orders.add(order);
++        return order;
++    }
++
++    public Order findOrderById(int id) {
++        return orders.stream()
++                .filter(i -> i.getId() == id)
++                .findFirst().orElse(null);
++    }
++
++    public void addProduct(int productId, int orderId) {
++        try {
++            Product product = products.getProduct(productId);
++            Order order = findOrderById(orderId);
++            order.add(product);
++            System.out.println("Заказ добавлен");
++        } catch (NullPointerException ex) {
++            System.out.println("Такого заказа или продукта нет");
++        }
++    }
++}
+Index: src/main/java/org/example/Products.txt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/org/example/Products.txt b/src/main/java/org/example/Products.txt
+new file mode 100644
+--- /dev/null	(date 1671174865371)
++++ b/src/main/java/org/example/Products.txt	(date 1671174865371)
+@@ -0,0 +1,5 @@
++2020,10,20,01,30,00;1;2020,11,21,01,40,00;"Продукты";Бананы;18;50;"Продукты";"Печенье";7;78;"Продукты";"Чипсы";50;90
++2021,10,20,01,30,00;2;;"Продукты";Масло;19;58;"Продукты";"Чипсы";50;90
++2022,9,3,01,30,00;3;2022,10,21,07,21,00;"Продукты";Масло;19;58;"Продукты";"Арахис";3;120;"Продукты";"Мясо";2;200;"Продукты";"Чипсы";50;90
++2022,9,3,01,30,00;4;2022,10,21,07,21,00;"Продукты";Масло;19;58;"Продукты";"Арахис";3;120;"Продукты";"Мясо";2;200;"Продукты";"Чипсы";50;90
++2022,4,10,20,29,00;5;2022,4,11,08,25,00;"Продукты";Майонез;20;80;"Продукты";"Памело";1;79;"Продукты";"Масло";3;120;"Продукты";"Чипсы";50;90;"Продукты";"Сок яблочный";5;140;"Товары для дома";"Мыло";5;90
+\ No newline at end of file
+Index: src/main/java/org/example/Products.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/org/example/Products.java b/src/main/java/org/example/Products.java
+new file mode 100644
+--- /dev/null	(date 1671171306717)
++++ b/src/main/java/org/example/Products.java	(date 1671171306717)
+@@ -0,0 +1,87 @@
++package org.example;
++
++import java.io.*;
++import java.util.*;
++import java.util.stream.Collectors;
++
++public class Products implements Serializable {
++    private final List<Product> products = new ArrayList<>();
++
++//        Product product =new Product("Продукты", "Гречка", 101);
++//        products.add(product);
++//        Product product1 = new Product("Продукты", "Шоколад", 120);
++//        products.add(product1);
++//        Product product2 = new Product("Продукты", "Молоко", 90);
++//        products.add(product2);
++//        Product product3 = new Product("Товары для дома", "Мыло", 50);
++//        products.add(product3);
++//        Product product4 =  new Product("Продукты", "Мука", 56);
++//        products.add(product4);
++//        Product product5 = new Product("Продукты", "Сок", 67);
++//        products.add(product5);
++//        Product product6 = new Product("Продукты", "Жвачка", 29);
++//        products.add(product6);
++//        Product product7 = new Product("Товары для дома", "Освежитель воздуха", 130);
++//        products.add(product7);
++//        Product product8 = new Product("Товары для дома", "Шампунь", 150);
++//        products.add(product8);
++//        Product product9 = new Product("Выпечка", "Хлеб", 20);
++//        products.add(product9);
++//        Product product10 = new Product("Выпечка", "Курасcан", 43);
++//        products.add(product10);
++//        Product product11 = new Product("Продукты", "Мармелад", 67);
++//        products.add(product11);
++//        Product product12 = new Product("Товары для дома", "Хлорка", 120);
++//        products.add(product12);
++//        Product product13 = new Product("Продукты", "Вода", 55);
++//        products.add(product13);
++//        Product product14 = new Product("Продукты ", "Чипсы", 99);
++//        products.add(product14);
++//        Product product15 = new Product("Продукты", "Сыр", 67);
++//        products.add(product15);
++//        Product product16 = new Product("Продукты", "Яйца", 102);
++//        products.add(product16);
++//        Product product17 = new Product("Продукты", "Бананы", 97);
++//        products.add(product17);
++//        Product product18 = new Product("Продукты", "Мёд", 170);
++//        products.add(product18);
++//        Product product19 = new Product("Товары для дома", "Швабра", 1300);
++//        products.add(product19);
++//        Product product20 = new Product("Продукты", "Кетчуп", 144);
++//        products.add(product20);
++
++    public void add(Product product) {
++        products.add(product);
++    }
++
++    public void remove(Product product) {
++        products.remove(product);
++    }
++
++//    public Product getProduct(Product product) {
++//        return products.get(products.indexOf(product));
++//    }
++
++    public Product getProduct(int id) {
++        return products.stream()
++                .filter(i ->i.getId() == id)
++                .findFirst().orElse(null);
++    }
++
++    public List<Product> getProducts() {
++        return products;
++    }
++
++    public int size() {
++        return products.size();
++    }
++
++    @Override
++    public String toString() {
++        return "" + products;
++    }
++
++    public void addAll(List<Product> products) {
++        this.products.addAll(products);
++    }
++}
+\ No newline at end of file
+Index: .idea/misc.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/misc.xml b/.idea/misc.xml
+new file mode 100644
+--- /dev/null	(date 1671171116185)
++++ b/.idea/misc.xml	(date 1671171116185)
+@@ -0,0 +1,14 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project version="4">
++  <component name="ExternalStorageConfigurationManager" enabled="true" />
++  <component name="MavenProjectsManager">
++    <option name="originalFiles">
++      <list>
++        <option value="$PROJECT_DIR$/pom.xml" />
++      </list>
++    </option>
++  </component>
++  <component name="ProjectRootManager" version="2" languageLevel="JDK_19" default="true" project-jdk-name="19" project-jdk-type="JavaSDK">
++    <output url="file://$PROJECT_DIR$/out" />
++  </component>
++</project>
+\ No newline at end of file
+diff --git a/src/test/OrdersTestEmpty.txt b/src/test/OrdersTestEmpty.txt
+new file mode 100644
+diff --git a/target/maven-status/maven-compiler-plugin/testCompile/default-testCompile/createdFiles.lst b/target/maven-status/maven-compiler-plugin/testCompile/default-testCompile/createdFiles.lst
+new file mode 100644
